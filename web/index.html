@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>hkcamera</title>
+  <style>
+    :root { color-scheme: dark; font-family: "Segoe UI", system-ui, sans-serif; background: #111314; color: #f1f3f3; --line: #303536; --muted: #9ca6a5; --accent: #77cdb3; }
+    * { box-sizing: border-box; letter-spacing: 0; }
+    body { margin: 0; min-height: 100dvh; display: grid; grid-template-columns: var(--left-width, 250px) minmax(0, 1fr) var(--right-width, 280px); }
+    button, input { font: inherit; }
+    button { border: 1px solid #3d4545; border-radius: 6px; min-height: 38px; padding: 8px 12px; color: #eaf0ee; background: #252b2c; cursor: pointer; transition: background 150ms, border-color 150ms; }
+    button:hover:not(:disabled) { background: #343d3d; border-color: #7b918b; }
+    button:active:not(:disabled), button.is-pressed { background: #366657; }
+    button:disabled { opacity: .38; cursor: not-allowed; }
+    button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    input { width: 100%; min-width: 0; border: 1px solid #424c4b; border-radius: 6px; padding: 9px 10px; color: #f5f5f5; background: #161b1c; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 20px; font-weight: 600; }
+    h2, h3 { font-size: 13px; font-weight: 600; color: #d9e1df; }
+    section { display: grid; gap: 14px; min-width: 0; }
+    label { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
+    #drive-speed { accent-color: var(--accent); }
+    #video-settings > :not(summary) { margin-top: 12px; }
+    #video-settings select { width: 100%; min-width: 0; padding: 9px 6px; border: 1px solid #424c4b; border-radius: 6px; background: #161b1c; color: #f5f5f5; font: inherit; }
+    #video-settings label:has(input[type="checkbox"]) { display: flex; align-items: flex-start; gap: 8px; line-height: 1.6; }
+    #video-settings input[type="checkbox"] { width: 16px; flex: 0 0 16px; margin: 3px 0 0; accent-color: var(--accent); }
+    aside { position: relative; grid-row: 1; grid-column: 3; padding: 24px 20px; background: #1b1f20; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+    .base-panel { grid-column: 1; border-left: 0; border-right: 1px solid var(--line); }
+    main { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; min-width: 0; background: #131718; }
+    .workspace-header { padding: 24px 24px 18px; border-bottom: 1px solid var(--line); display: grid; gap: 18px; }
+    .brand, .section-heading, .dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+    .brand small { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; text-align: right; }
+    .access-row { display: grid; grid-template-columns: minmax(120px, 1fr) auto auto 38px; gap: 8px; align-items: end; }
+    .control-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    #claim { background: #77cdb3; color: #10231d; border-color: #77cdb3; white-space: nowrap; }
+    #claim[data-state="owned"] { background: #284a40; border-color: #77cdb3; color: #b8f1dd; opacity: 1; }
+    #claim[data-state="error"] { background: #753d40; border-color: #bc797d; color: #fff; }
+    .input-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .input-toolbar .control-feedback { margin-left: auto; }
+    .segmented { display: inline-flex; padding: 3px; border: 1px solid #3b4343; border-radius: 6px; background: #171b1c; gap: 3px; }
+    .segmented button { border: 0; background: transparent; min-height: 30px; padding: 6px 10px; display: flex; align-items: center; gap: 7px; font-size: 12px; }
+    .segmented button[aria-pressed="true"], .segmented button[aria-selected="true"] { background: #3a4342; color: #fff; }
+    .segmented svg { width: 16px; height: 16px; }
+    .icon-button { display: grid; place-items: center; width: 38px; height: 38px; padding: 8px; flex: 0 0 38px; }
+    .icon-button svg { width: 18px; height: 18px; }
+    .control-feedback, .device-state { font-size: 12px; line-height: 1.5; color: var(--muted); min-height: 18px; overflow-wrap: anywhere; }
+    [data-tone="active"] { color: #98dfc5; }
+    [data-tone="error"] { color: #f0a0a5; }
+    .device-state { display: flex; align-items: center; gap: 6px; }
+    .device-state::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #858e8c; flex: 0 0 6px; }
+    .device-state[data-tone="active"]::before { background: #77cdb3; }
+    .device-state[data-tone="error"]::before { background: #de9299; }
+    .drive-inputs { display: grid; gap: 12px; justify-items: center; padding: 12px 0 2px; }
+    .stick { position: relative; width: 112px; aspect-ratio: 1; border: 1px solid #52635e; border-radius: 50%; background: #121a18; touch-action: none; user-select: none; }
+    .stick[aria-disabled="true"] { opacity: .35; cursor: not-allowed; }
+    .stick i { position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: #8edcc1; transform: translate(0,0); }
+    .base-pad { display: grid; grid-template-columns: repeat(3, 40px); grid-auto-rows: 40px; gap: 5px; }
+    .base-pad button { width: 40px; height: 40px; padding: 9px; touch-action: none; }
+    .base-pad svg { width: 20px; height: 20px; }
+    .base-pad #base-zero { background: #a82935; border-color: #ef6672; color: #fff; padding: 4px; display: grid; place-items: center; align-content: center; gap: 1px; }
+    .base-pad #base-zero:hover:not(:disabled) { background: #cf3443; border-color: #ff939c; }
+    .base-pad #base-zero svg { width: 19px; height: 19px; fill: currentColor; }
+    .base-pad #base-zero span { font-size: 8px; font-weight: 800; line-height: 1; letter-spacing: .7px; }
+    .base-pad button[aria-pressed="true"] { background: #366657; border-color: #8edcc1; }
+    .axis-values { text-align: center; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--muted); }
+    .device-status { display: grid; gap: 9px; padding-top: 18px; border-top: 1px solid var(--line); }
+    details { min-width: 0; font-size: 12px; }
+    summary { cursor: pointer; color: #aab7b2; padding: 5px 0; }
+    details[open] summary { margin-bottom: 6px; }
+    .control-output { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.65 Consolas, monospace; color: #aabbb4; max-height: 220px; overflow-y: auto; }
+    .pad { display: grid; grid-template-columns: repeat(3, minmax(0, 60px)); grid-auto-rows: 52px; gap: 7px; justify-content: center; padding: 18px 0 4px; }
+    .pad button { touch-action: none; user-select: none; padding: 12px; }
+    .pad svg { width: 20px; height: 20px; }
+    .range-label { display: flex; justify-content: space-between; gap: 12px; }
+    #speed { width: 100%; padding: 0; accent-color: #8edcc1; }
+    #speed-value { min-width: 32px; text-align: right; }
+    .danger { background: #67393d; border-color: #a3666c; color: #ffe9eb; }
+    .video { padding: 22px 24px; display: grid; place-items: center; flex: 1 0 auto; align-content: center; }
+    .viewport { position: relative; width: 100%; max-width: 1100px; aspect-ratio: 16/9; border: 1px solid #363f3c; border-radius: 8px; overflow: hidden; display: grid; place-items: center; background: #0b0e0d; }
+    .viewport video { width: 100%; height: 100%; display: block; object-fit: contain; background: #080b0a; }
+    #turtle-canvas { width: 100%; height: 100%; object-fit: contain; background: #243b77; }
+    .turtle-caption { position: absolute; top: 12px; left: 12px; background: #111a2de8; border: 1px solid #536c91; border-radius: 5px; padding: 7px 10px; color: #e1edff; font-size: 11px; pointer-events: none; }
+    #turtle-placeholder { color: #e0eaff; background: #14295266; }
+    .video-placeholder { position: absolute; inset: 0; display: grid; place-items: center; color: #8b9a94; font-size: 13px; pointer-events: none; text-align: center; padding: 20px; }
+    [hidden], .video-placeholder[hidden] { display: none !important; }
+    .media-controls { position: absolute; inset: auto 0 0; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #151b18ee; transform: translateY(110%); opacity: 0; pointer-events: none; transition: transform 200ms, opacity 200ms; }
+    .viewport.controls-visible .media-controls { transform: translateY(0); opacity: 1; pointer-events: auto; }
+    .media-controls button { display: grid; place-items: center; width: 36px; height: 36px; min-height: 36px; padding: 8px; flex: 0 0 36px; }
+    .media-controls svg { width: 18px; height: 18px; }
+    .media-controls input { width: 96px; min-width: 30px; padding: 0; accent-color: #8edcc1; }
+    .media-controls #fullscreen { margin-left: auto; }
+    .viewport:fullscreen { width: 100%; height: 100%; border: 0; border-radius: 0; }
+    .status { padding: 12px 24px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; font-size: 11px; color: var(--muted); }
+    .status div { display: grid; gap: 5px; }
+    .status strong { font-weight: 500; color: #dfe7e3; overflow-wrap: anywhere; }
+    .status .mode-control { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+    .mode-control .segmented { display: inline-flex; }
+    #mode-feedback { flex: 1; min-width: 180px; text-align: right; }
+    .activity { padding: 16px 24px 22px; gap: 10px; }
+    .log { height: 116px; overflow: auto; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.7 Consolas, monospace; color: #9faea7; }
+    .camera-log { height: 140px; }
+    .resize-handle { position: absolute; top: 0; bottom: 0; width: 8px; z-index: 4; cursor: col-resize; touch-action: none; }
+    .resize-handle:hover, .resize-handle:focus-visible { background: #77cdb340; }
+    #resize-left { right: -4px; } #resize-right { left: -4px; }
+    dialog { width: min(540px, calc(100% - 32px)); max-height: calc(100dvh - 40px); overflow: auto; padding: 24px; border: 1px solid #4a5651; border-radius: 8px; background: #222827; color: #edf3f0; box-shadow: 0 24px 80px #0007; }
+    dialog::backdrop { background: #0009; backdrop-filter: blur(6px); }
+    dialog form { display: grid; gap: 18px; }
+    dialog h2 { font-size: 18px; color: #f1f4f2; }
+    #mapping-fields { display: grid; }
+    .mapping-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(100px, 160px); align-items: center; gap: 16px; padding: 9px 0; border-bottom: 1px solid #3c4541; }
+    .mapping-row span { font-size: 13px; color: #c6d2cc; }
+    .mapping-row button { min-height: 36px; font-size: 12px; }
+    .mapping-row button[data-listening="true"] { border-color: #8edcc1; color: #b3f7da; background: #2b463b; }
+    #mapping-feedback, #password-feedback { font-size: 12px; min-height: 18px; color: #e6b984; }
+    #password-dialog { width: min(400px, calc(100% - 32px)); }
+    @media (max-width: 1100px) {
+      body { display: grid; grid-template-columns: 1fr 1fr; }
+      main { grid-column: 1/-1; grid-row: 1; }
+      aside { grid-column: 2; grid-row: 2; border-top: 1px solid var(--line); }
+      .base-panel { grid-column: 1; grid-row: 2; border-right: 0; border-top: 1px solid var(--line); }
+      .resize-handle { display: none; }
+      .video { flex: initial; }
+    }
+    @media (max-width: 560px) {
+      body { display: flex; flex-direction: column; }
+      main { order: 0; } .base-panel { order: 1; } .camera-panel { order: 2; }
+      aside { padding: 20px; border-left: 0; }
+      .workspace-header { padding: 20px 16px 16px; }
+      .access-row { grid-template-columns: minmax(0, 1fr) auto 38px; }
+      .access-row label { grid-column: 1/-1; } #claim { grid-column: 1; }
+      .input-toolbar { gap: 8px; } .input-toolbar .control-feedback { margin-left: 0; flex-basis: 100%; }
+      .status { padding: 12px 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .video { padding: 16px; } .activity { padding: 14px 16px 20px; }
+      .media-controls input { width: 65px; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } dialog::backdrop { backdrop-filter: none; } }
+  </style>
+</head>
+<body>
+  <aside class="base-panel" aria-label="底盘控制">
+    <div id="resize-left" class="resize-handle" role="separator" aria-label="调整底盘栏宽度" aria-orientation="vertical" tabindex="0"></div>
+    <section>
+      <div class="section-heading"><h2>底盘</h2><span id="base-state" class="device-state">未连接</span></div>
+      <div class="drive-inputs">
+        <div id="base-stick" class="stick" role="slider" aria-label="左摇杆底盘控制" aria-disabled="true" tabindex="0"><i></i></div>
+        <div class="base-pad" role="group" aria-label="底盘十字键">
+          <span></span><button data-base="forward" title="前进" aria-label="前进" aria-pressed="false" disabled><i data-lucide="arrow-up"></i></button><span></span>
+          <button data-base="left" title="左转" aria-label="左转" aria-pressed="false" disabled><i data-lucide="rotate-ccw"></i></button><button id="base-zero" title="停止全部运动" aria-label="停止全部运动" disabled><i data-lucide="square"></i><span>STOP</span></button><button data-base="right" title="右转" aria-label="右转" aria-pressed="false" disabled><i data-lucide="rotate-cw"></i></button>
+          <span></span><button data-base="back" title="后退" aria-label="后退" aria-pressed="false" disabled><i data-lucide="arrow-down"></i></button><span></span>
+        </div>
+      </div>
+      <span id="base-readout" class="axis-values">前后 0.00 · 转向 0.00</span>
+      <label><span class="range-label">行驶速度 <output id="drive-speed-value">低速 · 25%</output></span><input id="drive-speed" type="range" min="25" max="100" step="5" value="25" disabled></label>
+      <p id="drive-permission" class="control-feedback">test：低速试用；高级密码：调速与独占控制</p>
+      <p class="control-feedback">Shift 切换低／中／高档 · Space 停止全部</p>
+      <div class="device-status">
+        <p id="base-send-state" class="control-feedback">等待连接底盘</p>
+        <p id="turtle-link-state" class="control-feedback">指令下发：待连接</p>
+        <p id="turtle-motion-state" class="control-feedback">运动状态：未知</p>
+        <pre id="turtle-pose" class="control-output" hidden></pre>
+      </div>
+      <details><summary>发送详情</summary><pre id="base-output" class="control-output">尚无输入</pre></details>
+      <details><summary>接收回执</summary><pre id="base-receipt" class="control-output">尚无回执</pre></details>
+    </section>
+  </aside>
+  <aside class="camera-panel" aria-label="云台控制">
+    <div id="resize-right" class="resize-handle" role="separator" aria-label="调整云台栏宽度" aria-orientation="vertical" tabindex="0"></div>
+    <section>
+      <div class="section-heading"><h2>云台与变焦</h2><span id="ptz-device-state" class="device-state">未连接</span></div>
+      <div class="pad" role="group" aria-label="云台方向与变焦">
+        <span></span><button data-ptz="up" title="向上" aria-label="向上" aria-pressed="false" disabled><i data-lucide="arrow-up"></i></button><span></span>
+        <button data-ptz="left" title="向左" aria-label="向左" aria-pressed="false" disabled><i data-lucide="arrow-left"></i></button><button id="ptz-zero" title="停止云台" aria-label="停止云台" disabled><i data-lucide="square"></i></button><button data-ptz="right" title="向右" aria-label="向右" aria-pressed="false" disabled><i data-lucide="arrow-right"></i></button>
+        <button data-ptz="zoom_out" title="缩小" aria-label="缩小" aria-pressed="false" disabled><i data-lucide="minus"></i></button><button data-ptz="down" title="向下" aria-label="向下" aria-pressed="false" disabled><i data-lucide="arrow-down"></i></button><button data-ptz="zoom_in" title="放大" aria-label="放大" aria-pressed="false" disabled><i data-lucide="plus"></i></button>
+      </div>
+      <span id="ptz-readout" class="axis-values">水平 0.00 · 垂直 0.00 · 变焦 0.00</span>
+      <label><span class="range-label">云台速度 <output id="speed-value" for="speed">6 / 7</output></span><input id="speed" type="range" min="1" max="7" step="1" value="6" disabled></label>
+      <details><summary>发送详情</summary><pre id="ptz-output" class="control-output">尚未发送</pre></details>
+    </section>
+    <section>
+      <details id="video-settings"><summary>画质与带宽</summary>
+        <p class="control-feedback">修改摄像头源端编码，影响所有观看者；切换时画面可能短暂重连。</p>
+        <label>画质上限<select id="video-profile"><option value="low">省流 · 8fps / 384kbps</option><option value="balanced" selected>均衡 · 15fps / 1024kbps</option><option value="high">清晰 · 25fps / 2048kbps</option><option value="custom">自定义</option></select></label>
+        <label>分辨率<select id="video-resolution"><option value="">等待读取摄像头</option></select></label>
+        <label>帧率<input id="video-fps" type="number" min="1" max="30" value="15"></label>
+        <label>码率上限（kbps）<input id="video-kbps" type="number" min="64" max="8192" step="64" value="1024"></label>
+        <label><input id="video-auto" type="checkbox">弱网自动降画质，稳定后逐步恢复到所选上限</label>
+        <button id="video-apply" type="button" disabled>应用画质</button>
+        <button id="video-refresh" type="button" disabled>读取摄像头参数</button>
+        <p id="video-quality-state" class="control-feedback" role="status">连接后读取源端参数</p>
+        <p id="video-network-state" class="control-feedback">等待视频网络统计</p>
+      </details>
+      <details open><summary>摄像头日志</summary><pre id="camera-log" class="log camera-log"></pre></details>
+    </section>
+  </aside>
+  <main>
+    <header class="workspace-header">
+      <div class="brand"><h1>遥控工作台</h1><small id="target-label">连接中</small></div>
+      <div class="access-row">
+        <label>控制密码<input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="输入控制密码"></label>
+        <button id="claim" disabled>连接中</button><button id="release" disabled>释放</button>
+        <button id="change-password" class="icon-button" title="修改控制密码" aria-label="修改控制密码" disabled><i data-lucide="key-round"></i></button>
+      </div>
+      <div class="input-toolbar">
+        <div class="segmented" role="group" aria-label="输入来源">
+          <button id="input-keyboard" type="button" aria-pressed="true" disabled><i data-lucide="keyboard"></i>键盘</button>
+          <button id="input-gamepad" type="button" aria-pressed="false" disabled><i data-lucide="gamepad-2"></i>手柄</button>
+        </div>
+        <button id="input-settings" class="icon-button" title="按键映射" aria-label="按键映射" disabled><i data-lucide="settings-2"></i></button>
+        <span id="gamepad-state" class="control-feedback">检测手柄中</span>
+        <p id="control-feedback" class="control-feedback" role="status" aria-live="polite">连接中</p>
+        <details id="gamepad-help"><summary>手柄连接帮助</summary><p class="control-feedback">把手柄连接到正在打开此网页的电脑，点击页面后按一下手柄按键。Windows 手柄应由 Windows 浏览器读取；NX 浏览器无法直接读取它。远程访问请使用 HTTPS，并允许浏览器访问手柄。</p></details>
+      </div>
+    </header>
+    <div class="video">
+      <div class="viewport controls-visible" tabindex="0" aria-label="摄像头视频">
+        <video id="camera-video" autoplay playsinline></video>
+        <div id="video-placeholder" class="video-placeholder">等待视频连接</div>
+        <canvas id="turtle-canvas" width="1000" height="650" aria-label="NX 小乌龟 ROS2 实时位置" hidden></canvas>
+        <div id="turtle-caption" class="turtle-caption" hidden>小乌龟 · NX ROS2 实时位置</div>
+        <div id="turtle-placeholder" class="video-placeholder" role="status" hidden>等待 NX 小乌龟位置反馈</div>
+        <div class="media-controls" role="group" aria-label="视频操作">
+          <button id="play-toggle" title="暂停" aria-label="暂停"><i data-lucide="pause"></i></button>
+          <button id="mute-toggle" title="静音" aria-label="静音" aria-pressed="false"><i data-lucide="volume-2"></i></button>
+          <input id="volume" type="range" min="0" max="1" step="0.05" value="1" aria-label="音量" title="音量">
+          <button id="fullscreen" title="全屏" aria-label="全屏"><i data-lucide="maximize"></i></button>
+        </div>
+      </div>
+    </div>
+    <div class="status">
+      <div>控制连接<strong id="ws-state">connecting</strong></div>
+      <div>摄像头<strong id="camera-state">unknown</strong></div>
+      <div>操控权<strong id="control-state">viewer</strong></div>
+      <div>视频<strong id="stream-state">pending</strong></div>
+      <div class="mode-control">
+        <div id="motion-mode" class="segmented" role="group" aria-label="控制对象">
+          <button type="button" data-motion-target="turtlesim" aria-pressed="false" disabled><i data-lucide="flask-conical"></i>测试模式</button>
+          <button type="button" data-motion-target="am3008" aria-pressed="false" disabled><i data-lucide="car-front"></i>无人车模式</button>
+        </div>
+        <span id="mode-feedback" role="status" aria-live="polite">正在确认控制对象</span>
+      </div>
+    </div>
+    <section class="activity">
+      <div class="section-heading"><h2>运行记录</h2></div>
+      <pre id="log" class="log" aria-label="运行记录"></pre>
+    </section>
+  </main>
+
+  <dialog id="mapping-dialog" aria-labelledby="mapping-title">
+    <form id="mapping-form">
+      <div class="dialog-heading"><h2 id="mapping-title">按键映射</h2><button id="mapping-close" class="icon-button" type="button" title="关闭" aria-label="关闭"><i data-lucide="x"></i></button></div>
+      <div class="segmented" role="tablist" aria-label="映射设备"><button type="button" role="tab" id="mapping-keys" aria-selected="true">键盘</button><button type="button" role="tab" id="mapping-pad" aria-selected="false">手柄</button></div>
+      <div id="mapping-fields"></div>
+      <p id="mapping-feedback" role="status"></p>
+      <div class="control-actions"><button id="mapping-reset" type="button">恢复默认</button><button type="submit">保存</button></div>
+    </form>
+  </dialog>
+  <dialog id="password-dialog" aria-labelledby="password-title">
+    <form id="password-form">
+      <div class="dialog-heading"><h2 id="password-title">修改控制密码</h2><button id="password-close" class="icon-button" type="button" title="关闭" aria-label="关闭"><i data-lucide="x"></i></button></div>
+      <label>当前密码<input id="current-password" type="password" autocomplete="current-password" maxlength="128" required></label>
+      <label>新密码<input id="new-password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required></label>
+      <label>确认新密码<input id="confirm-password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required></label>
+      <p id="password-feedback" role="status" aria-live="polite"></p>
+      <button id="password-save" type="submit">保存密码</button>
+    </form>
+  </dialog>
+
+  <script src="/static/ZLMRTCClient.js"></script>
+  <script src="/static/lucide.min.js"></script>
+  <script>
+    const logEl = document.querySelector("#log");
+    const tokenEl = document.querySelector("#token");
+    const baseReadout = document.querySelector("#base-readout");
+    const ptzReadout = document.querySelector("#ptz-readout");
+    const wsState = document.querySelector("#ws-state");
+    const cameraState = document.querySelector("#camera-state");
+    const controlState = document.querySelector("#control-state");
+    const streamState = document.querySelector("#stream-state");
+    const videoEl = document.querySelector("#camera-video");
+    const videoPlaceholder = document.querySelector("#video-placeholder");
+    const claimButton = document.querySelector("#claim");
+    const releaseButton = document.querySelector("#release");
+    const stopButton = document.querySelector("#base-zero");
+    const controlFeedback = document.querySelector("#control-feedback");
+    const ptzButtons = [...document.querySelectorAll("[data-ptz]")];
+    const motionNames = { left: "向左移动", right: "向右移动", up: "向上移动", down: "向下移动", zoom_in: "放大", zoom_out: "缩小" };
+    const logLines = [];
+    const playToggle = document.querySelector("#play-toggle");
+    const muteToggle = document.querySelector("#mute-toggle");
+    const volumeEl = document.querySelector("#volume");
+    const fullscreenButton = document.querySelector("#fullscreen");
+    const viewport = document.querySelector(".viewport");
+    const mediaControls = document.querySelector(".media-controls");
+    const passwordDialog = document.querySelector("#password-dialog");
+    const passwordForm = document.querySelector("#password-form");
+    const passwordFeedback = document.querySelector("#password-feedback");
+    const passwordSave = document.querySelector("#password-save");
+    let mediaTimer;
+    let mediaKeyboard = false;
+    let passwordTimer;
+    let changingPassword = false;
+    let savedPasswordNotice = "";
+
+    function hideMediaControls() {
+      if (videoEl.paused || (mediaKeyboard && mediaControls.contains(document.activeElement)) || mediaControls.matches(":hover")) return;
+      viewport.classList.remove("controls-visible");
+      mediaControls.inert = true;
+    }
+
+    function revealMediaControls() {
+      viewport.classList.add("controls-visible");
+      mediaControls.inert = false;
+      clearTimeout(mediaTimer);
+      mediaTimer = setTimeout(hideMediaControls, 2200);
+    }
+
+    ["pointermove", "pointerdown", "focusin"].forEach(event => viewport.addEventListener(event, revealMediaControls));
+    viewport.addEventListener("pointerdown", () => { mediaKeyboard = false; });
+    document.addEventListener("keydown", () => { mediaKeyboard = true; });
+    viewport.addEventListener("pointerleave", () => { clearTimeout(mediaTimer); mediaTimer = setTimeout(hideMediaControls, 500); });
+    viewport.addEventListener("focusout", revealMediaControls);
+    ["playing", "pause"].forEach(event => videoEl.addEventListener(event, revealMediaControls));
+
+    function resetPasswordRequest() {
+      clearTimeout(passwordTimer);
+      changingPassword = false;
+      passwordSave.disabled = false;
+      document.querySelector("#password-close").disabled = false;
+      document.querySelector("#change-password").disabled = false;
+      passwordSave.textContent = "保存密码";
+      passwordForm.querySelectorAll("input").forEach(input => { input.disabled = false; });
+    }
+
+    document.querySelector("#change-password").onclick = () => {
+      if (!operator) return;
+      stopPtz();
+      passwordForm.reset();
+      passwordFeedback.textContent = "";
+      document.querySelector("#current-password").value = tokenEl.value;
+      passwordDialog.showModal();
+    };
+    document.querySelector("#password-close").onclick = () => passwordDialog.close();
+    passwordDialog.addEventListener("cancel", event => { if (changingPassword) event.preventDefault(); });
+    passwordDialog.addEventListener("close", () => { if (!changingPassword) passwordForm.reset(); });
+    passwordForm.onsubmit = event => {
+      event.preventDefault();
+      if (changingPassword || !operator) return;
+      const newToken = document.querySelector("#new-password").value;
+      if (newToken !== document.querySelector("#confirm-password").value) { passwordFeedback.textContent = "两次输入的新密码不一致"; return; }
+      if (newToken.trim().length === 0) { passwordFeedback.textContent = "密码不能全为空格"; return; }
+      stopPtz();
+      if (!send({ type: "change_token", current_token: document.querySelector("#current-password").value, new_token: newToken })) {
+        passwordFeedback.textContent = "连接已断开，请重连后重试";
+        return;
+      }
+      changingPassword = true;
+      passwordSave.disabled = true;
+      document.querySelector("#password-close").disabled = true;
+      document.querySelector("#change-password").disabled = true;
+      passwordSave.textContent = "保存中…";
+      passwordFeedback.textContent = "";
+      passwordForm.querySelectorAll("input").forEach(input => { input.disabled = true; });
+      passwordTimer = setTimeout(() => { resetPasswordRequest(); passwordFeedback.textContent = "尚未收到结果，请用新密码尝试登录"; }, 8000);
+    };
+
+    function mediaButton(button, icon, label) {
+      button.title = label;
+      button.setAttribute("aria-label", label);
+      const glyph = document.createElement("i");
+      glyph.dataset.lucide = icon;
+      button.replaceChildren(glyph);
+      window.lucide?.createIcons();
+    }
+
+    function updateMediaControls() {
+      mediaButton(playToggle, videoEl.paused ? "play" : "pause", videoEl.paused ? "播放" : "暂停");
+      const silent = videoEl.muted || videoEl.volume === 0;
+      mediaButton(muteToggle, silent ? "volume-x" : "volume-2", silent ? "取消静音" : "静音");
+      muteToggle.setAttribute("aria-pressed", String(silent));
+      volumeEl.value = String(videoEl.volume);
+      const expanded = document.fullscreenElement === viewport;
+      mediaButton(fullscreenButton, expanded ? "minimize" : "maximize", expanded ? "退出全屏" : "全屏");
+    }
+
+    playToggle.onclick = async () => {
+      if (!videoEl.paused) videoEl.pause();
+      else {
+        try { await videoEl.play(); } catch (error) { log(`playback error: ${error.message}`); }
+      }
+    };
+    muteToggle.onclick = () => {
+      if (videoEl.volume === 0) { videoEl.volume = .5; videoEl.muted = false; }
+      else videoEl.muted = !videoEl.muted;
+    };
+    volumeEl.oninput = () => { videoEl.volume = Number(volumeEl.value); videoEl.muted = videoEl.volume === 0; };
+    fullscreenButton.onclick = async () => {
+      stopPtz();
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else if (viewport.requestFullscreen) await viewport.requestFullscreen();
+        else if (videoEl.webkitEnterFullscreen) videoEl.webkitEnterFullscreen();
+      } catch (error) { log(`fullscreen error: ${error.message}`); }
+    };
+    ["play", "pause", "volumechange"].forEach(event => videoEl.addEventListener(event, updateMediaControls));
+    document.addEventListener("fullscreenchange", updateMediaControls);
+
+    function showVideoFrame() {
+      if (motionTarget === "turtlesim") return;
+      videoPlaceholder.hidden = true;
+      streamState.textContent = "live";
+    }
+
+    videoEl.addEventListener("loadeddata", showVideoFrame);
+    videoEl.addEventListener("playing", showVideoFrame);
+    videoEl.addEventListener("timeupdate", () => {
+      if (videoEl.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) showVideoFrame();
+    });
+    if (typeof videoEl.requestVideoFrameCallback === "function") {
+      videoEl.requestVideoFrameCallback(showVideoFrame);
+    }
+
+    let videoStarted = false;
+    let videoPlayer = null;
+    let videoRetryTimer = null;
+    function retryVideo() {
+      if (videoRetryTimer) return;
+      videoRetryTimer = setTimeout(() => {
+        videoRetryTimer = null;
+        videoPlayer?.close?.(); videoPlayer = null; videoStarted = false;
+        startVideo();
+      }, 4000);
+    }
+    function startVideo() {
+      if (videoStarted) return;
+      if (!window.ZLMRTCClient) {
+        streamState.textContent = "pending";
+        log("webrtc player not loaded; PTZ control remains available");
+        return;
+      }
+      const zlmBase = location.protocol === "http:" && ["8090", "8093"].includes(location.port)
+        ? `http://${location.hostname}:8080`
+        : location.origin;
+      const zlmsdpUrl = `${zlmBase}/index/api/webrtc?app=live&stream=hkcamera&type=play`;
+      const player = new ZLMRTCClient.Endpoint({
+        element: videoEl,
+        zlmsdpUrl,
+        recvOnly: true,
+        audioEnable: true,
+        videoEnable: true,
+        usedatachannel: false,
+      });
+      videoPlayer = player;
+      videoStarted = true;
+      player.on(ZLMRTCClient.Events.WEBRTC_ON_REMOTE_STREAMS, () => {
+        if (videoEl.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) showVideoFrame();
+        log("webrtc video connected");
+      });
+      player.on(ZLMRTCClient.Events.WEBRTC_OFFER_ANWSER_EXCHANGE_FAILED, error => {
+        if (motionTarget !== "turtlesim") { videoPlaceholder.hidden = false; streamState.textContent = "error"; }
+        log(`webrtc video error: ${error}`);
+        retryVideo();
+      });
+      player.on(ZLMRTCClient.Events.WEBRTC_ON_CONNECTION_STATE_CHANGE, state => {
+        log(`webrtc state: ${state}`);
+        if (["failed", "disconnected", "closed"].includes(state)) retryVideo();
+      });
+    }
+
+    let ws;
+    let clientId = "";
+    let operator = false;
+    let operatorRole = "viewer";
+    let speedScale = 0.25;
+    let speedCeiling = 0.2;
+    let currentOperator = null;
+    let cameraOnline = false;
+    let ptzReady = false;
+    let pendingAction = null;
+    let controlTimer = null;
+    let controlNotice = "";
+    let activePtz = null;
+    let activeInput = null;
+    let ptzTimer = null;
+    let baseConnected = false;
+    let clockOffset = 0;
+    let motionTarget = null;
+    let modeSwitching = false;
+    let motionRecovering = false;
+    let modeSupported = false;
+    let motionError = "";
+    let pendingMode = null;
+    let modeTimer = null;
+    const modeButtons = [...document.querySelectorAll("[data-motion-target]")];
+    const modeFeedback = document.querySelector("#mode-feedback");
+    const turtleCanvas = document.querySelector("#turtle-canvas");
+    const turtlePlaceholder = document.querySelector("#turtle-placeholder");
+    let turtleTrace = [];
+
+    function drawTurtle(pose) {
+      const ctx = turtleCanvas.getContext("2d");
+      if (!ctx) return;
+      const width = turtleCanvas.width, height = turtleCanvas.height;
+      const size = Math.min(width - 120, height - 80), left = (width - size) / 2, top = (height - size) / 2;
+      ctx.fillStyle = "#243b77"; ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = "#4556d2"; ctx.fillRect(left, top, size, size);
+      ctx.strokeStyle = "#ffffff13"; ctx.lineWidth = 1;
+      for (let n = 0; n <= 11; n++) {
+        const pos = size * n / 11;
+        ctx.beginPath(); ctx.moveTo(left + pos, top); ctx.lineTo(left + pos, top + size); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(left, top + pos); ctx.lineTo(left + size, top + pos); ctx.stroke();
+      }
+      const point = value => ({ x: left + value.x / 11.088889 * size, y: top + size - value.y / 11.088889 * size });
+      if (turtleTrace.length > 1) {
+        ctx.strokeStyle = "#fbefb9"; ctx.lineWidth = 2; ctx.beginPath();
+        turtleTrace.forEach((value, index) => { const p = point(value); index ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }); ctx.stroke();
+      }
+      if (!pose) return;
+      const p = point(pose);
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(-pose.theta);
+      ctx.fillStyle = "#96cf7c";
+      for (const [x, y] of [[-9,-13],[-9,13],[9,-13],[9,13]]) { ctx.beginPath(); ctx.ellipse(x,y,7,4,x>0?.5:-.5,0,Math.PI*2); ctx.fill(); }
+      ctx.beginPath(); ctx.ellipse(19,0,9,7,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#1d6255"; ctx.beginPath(); ctx.ellipse(0,0,19,14,0,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle = "#b7dd8c"; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0,0,12,9,0,0,Math.PI*2); ctx.stroke();
+      ctx.fillStyle = "#102d2a"; ctx.beginPath(); ctx.arc(22,-3,1.6,0,Math.PI*2); ctx.fill(); ctx.restore();
+      document.querySelector("#turtle-caption").textContent = `小乌龟 · NX ROS2 实时位置 · X ${pose.x.toFixed(2)} / Y ${pose.y.toFixed(2)}`;
+    }
+
+    function showMotionTarget(target) {
+      if (target !== "turtlesim" && target !== "am3008") return;
+      const changed = motionTarget !== target;
+      motionTarget = target;
+      const test = target === "turtlesim";
+      videoEl.hidden = test; videoPlaceholder.hidden = test || videoEl.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+      mediaControls.hidden = test; turtleCanvas.hidden = !test;
+      document.querySelector("#turtle-caption").hidden = !test;
+      turtlePlaceholder.hidden = !test || Boolean(lastTurtlePose && performance.now() - lastTurtlePose < 1500);
+      viewport.setAttribute("aria-label", test ? "小乌龟实时位置" : "海康摄像头视频");
+      if (changed) { turtleTrace = []; lastTurtlePose = 0; drawTurtle(null); if (test) turtlePlaceholder.hidden = false; }
+      if (test) { streamState.textContent = lastTurtlePose ? "ROS2 实时位置" : "等待位置反馈"; }
+      else { streamState.textContent = videoEl.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA ? "playing" : "pending"; try { startVideo(); } catch(error) { log(`video startup error: ${error.message}`); } }
+    }
+
+    function syncMotionStatus(control) {
+      motionRecovering = control?.motion_recovering === true;
+      if (!control) return;
+      modeSupported = typeof control.motion_target === "string";
+      const priorError = motionError;
+      motionError = typeof control.motion_error === "string" ? control.motion_error : "";
+      if (motionError) {
+        modeFeedback.dataset.error = "true";
+        modeFeedback.textContent = "控制对象未就绪 · 可选择当前模式重试";
+        if (motionError !== priorError) log(`motion unavailable: ${motionError}`);
+      }
+      const target = control.motion_target || ({ros2_turtlesim:"turtlesim",ros2_cmd_vel:"am3008"})[control.base_mode];
+      showMotionTarget(target);
+      modeSwitching = control.mode_switching === true;
+      if (!modeSwitching && pendingMode && target === pendingMode) { pendingMode = null; clearTimeout(modeTimer); }
+    }
+
+    function renderControls() {
+      const connected = ws?.readyState === WebSocket.OPEN;
+      const occupied = Boolean(currentOperator && currentOperator !== clientId);
+      const canMove = connected && operator && cameraOnline && ptzReady && !pendingAction && !modeSwitching;
+      claimButton.disabled = !connected || operator || Boolean(pendingAction) || modeSwitching;
+      claimButton.dataset.state = operator ? "owned" : pendingAction ? "pending" : controlNotice ? "error" : "viewer";
+      claimButton.textContent = operator ? "正在操控" : pendingAction === "claim" ? "申请中…" : occupied ? "接管操控权" : connected ? "获取操控权" : "连接中";
+      claimButton.setAttribute("aria-busy", String(pendingAction === "claim"));
+      releaseButton.disabled = !connected || !operator || Boolean(pendingAction);
+      releaseButton.textContent = pendingAction === "release" ? "释放中…" : "释放";
+      tokenEl.disabled = operator || Boolean(pendingAction);
+      ptzButtons.forEach(button => { button.disabled = !canMove; });
+      stopButton.disabled = !connected || !operator;
+      for (const stick of document.querySelectorAll(".stick")) stick.setAttribute("aria-disabled", String(!canMove));
+      const baseEnabled = connected && operator && baseConnected && !pendingAction && !modeSwitching && !motionRecovering;
+      document.querySelector("#base-stick").setAttribute("aria-disabled", String(!baseEnabled));
+      document.querySelectorAll("[data-base]").forEach(button => { button.disabled = !baseEnabled; });
+      document.querySelector("#ptz-zero").disabled = !canMove;
+      document.querySelector("#speed").disabled = !canMove;
+      document.querySelector("#input-settings").disabled = !connected || !operator;
+      document.querySelector("#change-password").disabled = !connected || !operator || operatorRole !== "advanced" || changingPassword;
+      document.querySelector("#input-keyboard").disabled = !connected;
+      document.querySelector("#input-gamepad").disabled = !connected;
+      modeButtons.forEach(button => {
+        const current = button.dataset.motionTarget === motionTarget;
+        button.disabled = !connected || !operator || !modeSupported || modeSwitching || motionRecovering || Boolean(pendingAction) || (current && baseConnected && !motionError);
+        button.setAttribute("aria-pressed", String(button.dataset.motionTarget === motionTarget));
+        button.title = current && (!baseConnected || motionError) ? "重试连接当前控制对象" : "切换前先停止全部运动";
+      });
+      if (motionRecovering) modeFeedback.textContent = "底盘自动重连中 · 恢复后请重新获取操控权";
+      else if (modeSwitching) modeFeedback.textContent = "切换中 · 运动已停止";
+      else if (!modeSupported && connected) modeFeedback.textContent = "模式切换需要更新 NX 后端";
+      else if (!modeFeedback.dataset.error) modeFeedback.textContent = motionTarget ? `${motionTarget === "turtlesim" ? "小乌龟测试" : "AM3008 无人车"} · ${operator ? "可切换控制对象" : "取得操控权后可切换"}` : "正在确认控制对象";
+      const baseBadge = document.querySelector("#base-state");
+      baseBadge.textContent = baseConnected ? "已连接" : "未连接";
+      baseBadge.dataset.tone = baseConnected ? "active" : "idle";
+      const cameraBadge = document.querySelector("#ptz-device-state");
+      cameraBadge.textContent = cameraOnline && ptzReady ? "已连接" : "未连接";
+      cameraBadge.dataset.tone = cameraOnline && ptzReady ? "active" : "idle";
+      if (!operator) {
+        document.querySelector("#mapping-dialog").close();
+        if (!changingPassword) passwordDialog.close();
+      }
+      window.refreshInputPermissions?.();
+      controlState.textContent = operator ? "operator" : "viewer";
+      controlFeedback.dataset.tone = controlNotice ? "error" : operator ? "active" : "idle";
+      controlFeedback.textContent = controlNotice || savedPasswordNotice || (!connected ? "连接已断开" : operator ? "操控权已获得" : occupied ? "其他用户正在操控" : "仅观看");
+      window.refreshDrivingSettings?.();
+    }
+
+    function finishControlRequest() {
+      clearTimeout(controlTimer);
+      controlTimer = null;
+      pendingAction = null;
+    }
+
+    function requestControl(type) {
+      if (pendingAction) return;
+      if (type === "release_control") stopPtz();
+      const payload = { type };
+      if (type === "claim_control") payload.operator_token = tokenEl.value;
+      if (!send(payload)) return;
+      pendingAction = type === "claim_control" ? "claim" : "release";
+      controlNotice = "";
+      savedPasswordNotice = "";
+      renderControls();
+      controlTimer = setTimeout(() => {
+        finishControlRequest();
+        controlNotice = "请求超时";
+        renderControls();
+      }, 4000);
+    }
+
+    function log(line) {
+      logLines.push(`[${new Date().toLocaleTimeString()}] ${line}`);
+      if (logLines.length > 150) logLines.shift();
+      logEl.textContent = logLines.join("\n");
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    const cameraLogLines = [];
+    function cameraLog(line) {
+      cameraLogLines.push(`[${new Date().toLocaleTimeString()}] ${line}`);
+      if (cameraLogLines.length > 100) cameraLogLines.shift();
+      const output = document.querySelector("#camera-log");
+      output.textContent = cameraLogLines.join("\n");
+      output.scrollTop = output.scrollHeight;
+    }
+
+    function send(payload) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+      try {
+        ws.send(JSON.stringify(payload));
+        if (payload.type === "ptz") document.querySelector("#ptz-output").textContent = baseDetails(payload);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function baseDetails(payload) {
+      return JSON.stringify(payload, (key, value) => {
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          return Object.fromEntries(Object.entries(value).map(([name, item]) => [name === "seq" ? "指令编号" : name, item]));
+        }
+        return value;
+      }, 2);
+    }
+    let lastTurtlePose = 0;
+    let baseWaitingSince = 0;
+    let lastBaseConnection = 0;
+    function setBaseConnection(connected) {
+      const previous = baseConnected;
+      baseConnected = Boolean(connected);
+      if (baseConnected) lastBaseConnection = performance.now();
+      if (previous && !baseConnected) {
+        stopAll("base_disconnected");
+        document.querySelector("#turtle-motion-state").textContent = "运动状态：未知";
+        document.querySelector("#turtle-pose").hidden = true;
+      }
+      if (previous !== baseConnected) log(baseConnected ? "底盘连接已建立" : "底盘连接已断开");
+      if (!baseConnected) {
+        document.querySelector("#base-send-state").textContent = "等待连接底盘";
+        document.querySelector("#turtle-link-state").textContent = "指令下发：待连接";
+      }
+      renderControls();
+    }
+    setInterval(() => {
+      if (baseConnected && lastBaseConnection && performance.now() - lastBaseConnection > 1800) setBaseConnection(false);
+      if (baseWaitingSince && performance.now() - baseWaitingSince > 1500) {
+        document.querySelector("#base-send-state").textContent = "已发送 · 后端回执超时";
+      }
+      if (lastTurtlePose && performance.now() - lastTurtlePose > 1500) {
+        document.querySelector("#turtle-motion-state").textContent = "运动状态：反馈超时";
+        if (motionTarget === "turtlesim") { turtlePlaceholder.hidden = false; turtlePlaceholder.textContent = "NX 小乌龟位置反馈中断"; streamState.textContent = "位置反馈中断"; }
+      }
+    }, 250);
+
+    function connect() {
+      const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+      ws = new WebSocket(`${wsProtocol}//${location.host}/ws/control`);
+      ws.onopen = () => { wsState.textContent = "open"; controlNotice = ""; renderControls(); log("websocket opened"); };
+      ws.onclose = () => {
+        window.resetDriveRequest?.();
+        modeSwitching = false; modeSupported = false; pendingMode = null; clearTimeout(modeTimer);
+        setBaseConnection(false);
+        baseWaitingSince = 0;
+        lastTurtlePose = 0;
+        document.querySelector("#base-send-state").textContent = "连接已断开";
+        document.querySelector("#turtle-link-state").textContent = "指令下发：连接已断开";
+        document.querySelector("#turtle-motion-state").textContent = "运动状态：未知";
+        stopPtz();
+        operator = false;
+        currentOperator = null;
+        cameraOnline = false;
+        ptzReady = false;
+        finishControlRequest();
+        if (changingPassword) { resetPasswordRequest(); passwordFeedback.textContent = "连接已断开，密码修改结果尚未确认"; }
+        wsState.textContent = "closed";
+        renderControls();
+        setTimeout(connect, 1000);
+      };
+      ws.onmessage = event => {
+        const msg = JSON.parse(event.data);
+        if (msg.type === "token_changed") {
+          const newToken = document.querySelector("#new-password").value;
+          resetPasswordRequest();
+          if (msg.ok) {
+            tokenEl.value = newToken;
+            passwordDialog.close();
+            passwordForm.reset();
+            controlNotice = "";
+            savedPasswordNotice = "密码已修改，请重新获取操控权";
+            renderControls();
+          } else {
+            passwordFeedback.textContent = ({ invalid_token: "当前密码不正确", invalid_length: "新密码需要 8–128 个字符", save_failed: "保存失败，密码未修改" })[msg.reason] || "修改失败";
+          }
+          return;
+        }
+        if (msg.type === "hello") {
+          clientId = msg.client_id;
+          clockOffset = Number.isFinite(msg.server_time) ? msg.server_time - Date.now() : 0;
+          setBaseConnection(msg.status.control.base_connected === true);
+          document.querySelector("#target-label").textContent = `接收端 · ${location.hostname}`;
+          cameraState.textContent = msg.status.camera.state;
+          cameraOnline = msg.status.camera.state === "logged_in";
+          ptzReady = msg.status.camera.ptz_mode === "continuous";
+          currentOperator = msg.status.control?.operator || null;
+          operator = currentOperator === clientId;
+          log("控制连接已建立");
+        }
+        if (msg.type === "camera") {
+          cameraState.textContent = msg.state;
+          cameraOnline = msg.state === "logged_in";
+          if (!cameraOnline) releasePtz();
+        }
+        if (msg.type === "ptz_ready") ptzReady = msg.mode === "continuous";
+        if (msg.type === "video" && motionTarget !== "turtlesim") streamState.textContent = msg.state;
+        if (msg.type === "camera_log" && !msg.line.startsWith("[status]")) {
+          cameraLog(msg.line);
+          if (msg.line.startsWith("[error] ptz")) {
+            stopPtz();
+            controlNotice = "云台指令失败";
+          }
+        }
+        if (msg.type === "camera_status") cameraLog(msg.line);
+        if (msg.type === "error") { resetJoysticks(); renderControls(); log(`error: ${msg.message}`); }
+        if (msg.type === "motion_stop") { resetJoysticks(); log(`motion stopped: ${msg.reason}`); }
+        if (msg.type === "base") log(`base control: ${msg.reason}`);
+        if (msg.type === "base_received") {
+          baseWaitingSince = 0;
+          document.querySelector("#base-receipt").textContent = baseDetails(msg);
+          document.querySelector("#base-send-state").textContent = "接收端已收到";
+          document.querySelector("#target-label").textContent = `接收端 · ${msg.node}`;
+        }
+        if (msg.type === "hello" || msg.type === "status") {
+          operatorRole = msg.status.control?.operator_role || (operator ? "advanced" : "viewer");
+          speedScale = msg.status.control?.speed_scale ?? speedScale;
+          speedCeiling = msg.status.control?.speed_ceiling_mps ?? speedCeiling;
+          window.syncVideoQuality?.(msg.status.video?.quality);
+          cameraState.textContent = msg.status.camera.state;
+          cameraOnline = msg.status.camera.state === "logged_in";
+          ptzReady = msg.status.camera.ptz_mode === "continuous";
+          syncMotionStatus(msg.status?.control);
+          setBaseConnection(msg.status?.control?.base_connected === true);
+          if (!baseConnected) document.querySelector("#turtle-link-state").textContent = "指令下发：待连接";
+        }
+        if (msg.type === "turtle_connection") {
+          const fresh = !msg.sampled_at || Math.abs(Date.now() + clockOffset - msg.sampled_at) < 1500;
+          setBaseConnection(msg.connected && fresh);
+        }
+        if (msg.type === "turtle_published") document.querySelector("#turtle-link-state").textContent = "指令下发：已发送至底盘";
+        if (msg.type === "turtle_rejected") document.querySelector("#turtle-link-state").textContent = msg.reason === "disconnected" ? "指令下发：底盘未连接" : "指令下发：已拒绝过期或无效输入";
+        if (msg.type === "turtle_stop") document.querySelector("#turtle-link-state").textContent = "指令下发：已超时归零";
+        if (msg.type === "turtle_unavailable") {
+          setBaseConnection(false);
+          lastTurtlePose = 0;
+          document.querySelector("#turtle-link-state").textContent = "指令下发：待连接";
+          document.querySelector("#turtle-motion-state").textContent = "运动状态：未知";
+        }
+        if (msg.type === "turtle_pose") {
+          if (msg.sampled_at && Math.abs(Date.now() + clockOffset - msg.sampled_at) > 1500) return;
+          if (![msg.x,msg.y,msg.theta,msg.linear_velocity,msg.angular_velocity].every(Number.isFinite)) return;
+          lastTurtlePose = performance.now();
+          if (motionTarget === "turtlesim") {
+            const prior = turtleTrace[turtleTrace.length - 1];
+            if (!prior || Math.hypot(msg.x-prior.x,msg.y-prior.y) > .01) { turtleTrace.push({x:msg.x,y:msg.y}); if (turtleTrace.length > 1500) turtleTrace.shift(); }
+            turtlePlaceholder.hidden = true; turtlePlaceholder.textContent = "等待 NX 小乌龟位置反馈";
+            streamState.textContent = "ROS2 实时位置"; drawTurtle(msg);
+          }
+          document.querySelector("#turtle-motion-state").textContent = msg.moving ? "运动状态：运动中" : "运动状态：位置稳定";
+          const pose = document.querySelector("#turtle-pose");
+          pose.hidden = false;
+          pose.textContent = `X ${msg.x.toFixed(2)} · Y ${msg.y.toFixed(2)}\n朝向 ${msg.theta.toFixed(2)} rad\n线速度 ${msg.linear_velocity.toFixed(2)} · 角速度 ${msg.angular_velocity.toFixed(2)}`;
+        }
+        if (msg.type === "control") {
+          finishControlRequest();
+          operator = Boolean(msg.ok);
+          currentOperator = msg.operator;
+          operatorRole = msg.role || (operator ? "advanced" : "viewer");
+          speedScale = msg.speed_scale ?? 0.25;
+          controlNotice = msg.ok ? "" : msg.reason === "occupied" ? "操控权已被占用" : "操控口令不正确";
+          log(operator ? "control claimed" : "control denied");
+        }
+        if (msg.type === "control_state") {
+          if (operator && msg.operator !== clientId) stopPtz();
+          currentOperator = msg.operator;
+          operator = msg.operator === clientId;
+          operatorRole = msg.operator_role || (operator ? operatorRole : "viewer");
+          speedScale = msg.speed_scale ?? speedScale;
+          if (pendingAction === "release" && !operator) finishControlRequest();
+        }
+        if (msg.type === "speed") {
+          speedScale = msg.scale;
+          window.confirmDriveSpeed?.(msg);
+          if (!msg.ok) log("当前权限不能调整行驶速度");
+        }
+        if (msg.type === "motion_mode") {
+          resetJoysticks();
+          modeSwitching = msg.state === "switching";
+          if (modeSwitching) {
+            operator = false; currentOperator = null; baseConnected = false;
+            modeFeedback.dataset.error = ""; lastTurtlePose = 0;
+            turtlePlaceholder.textContent = "正在切换控制对象";
+            if (motionTarget === "turtlesim") turtlePlaceholder.hidden = false;
+          } else {
+            clearTimeout(modeTimer); pendingMode = null;
+            showMotionTarget(msg.target);
+            if (msg.state === "error") {
+              modeFeedback.dataset.error = "true"; modeFeedback.textContent = "模式切换失败，请查看运行记录";
+              log(`mode switch failed: ${msg.reason || "unknown"}`);
+            } else {
+              modeFeedback.dataset.error = ""; savedPasswordNotice = "模式已切换，请重新获取操控权";
+              log(`控制对象：${msg.target === "turtlesim" ? "小乌龟测试" : "AM3008 无人车"}`);
+            }
+            send({type:"status"});
+          }
+        }
+        renderControls();
+      };
+    }
+
+    claimButton.onclick = () => requestControl("claim_control");
+    releaseButton.onclick = () => requestControl("release_control");
+    stopButton.onclick = () => stopAll("button");
+    modeButtons.forEach(button => { button.onclick = () => {
+      const target = button.dataset.motionTarget;
+      if (button.disabled || !operator || modeSwitching || (target === motionTarget && baseConnected && !motionError)) return;
+      stopAll("motion_mode_switch");
+      if (!send({type:"motion_mode",target})) return;
+      pendingMode = target; modeSwitching = true; modeFeedback.dataset.error = "";
+      renderControls();
+      clearTimeout(modeTimer); modeTimer = setTimeout(() => {
+        if (!pendingMode) return;
+        modeSwitching = false; pendingMode = null; operator = false;
+        resetJoysticks(); modeFeedback.dataset.error = "true";
+        modeFeedback.textContent = "切换确认超时，正在重新查询状态";
+        send({type:"status"}); renderControls();
+      }, 60000);
+    }; });
+    tokenEl.addEventListener("input", () => { controlNotice = ""; renderControls(); });
+
+    let seq = 0;
+    let baseAxes = { x: 0, y: 0 };
+    let baseButton = null;
+    let ptzAxes = { x: 0, y: 0, z: 0 };
+    let ptzHeld = null;
+    const joystickResets = [];
+    const deadzone = value => Math.abs(value) < 0.10 ? 0 : Number(value.toFixed(3));
+    function sendBase() {
+      if (!baseConnected || modeSwitching || motionRecovering) return false;
+      const payload = { type: "base", seq: seq + 1, linear: deadzone(-baseAxes.y), angular: deadzone(baseAxes.x), timestamp: Date.now() + clockOffset };
+      const sent = operator && send(payload);
+      if (sent) { seq++; baseWaitingSince ||= performance.now(); }
+      document.querySelector("#base-send-state").textContent = sent ? (performance.now() - baseWaitingSince > 1500 ? "已发送 · 后端回执超时" : "已发送 · 等待后端回执") : "连接或操控权未就绪 · 未发送";
+      document.querySelector("#base-output").textContent = baseDetails(payload);
+      return sent;
+    }
+    function sendPtzAxes() {
+      if (!operator || !cameraOnline || !ptzReady || modeSwitching) return false;
+      return send({ type: "ptz", seq: ++seq, pan: deadzone(ptzAxes.x), tilt: deadzone(ptzAxes.y), zoom: deadzone(ptzAxes.z), speed: Number(document.querySelector("#speed").value), timestamp: Date.now() + clockOffset });
+    }
+    function stopAll(reason = "stop") {
+      resetJoysticks();
+      sendBase();
+      if (operator) send({ type: "stop", reason });
+    }
+    function resetJoysticks() {
+      window.resetMappedInputs?.();
+      baseAxes = { x: 0, y: 0 };
+      baseButton = null;
+      document.querySelectorAll("[data-base]").forEach(button => button.setAttribute("aria-pressed", "false"));
+      ptzAxes = { x: 0, y: 0, z: 0 };
+      ptzHeld = null;
+      ptzButtons.forEach(button => button.setAttribute("aria-pressed", "false"));
+      for (const dot of document.querySelectorAll(".stick i")) dot.style.transform = "translate(0,0)";
+      baseReadout.textContent = "前后 0.00 · 转向 0.00";
+      ptzReadout.textContent = "水平 0.00 · 垂直 0.00 · 变焦 0.00";
+      joystickResets.forEach(reset => reset());
+    }
+
+    function stopPtz() { stopAll("control_interrupted"); renderControls(); }
+
+    function setupJoystick(id, apply, release) {
+      const stick = document.querySelector(id);
+      const dot = stick.querySelector("i");
+      let activePointer = null;
+      joystickResets.push(() => {
+        const pointer = activePointer; activePointer = null;
+        if (pointer !== null && stick.hasPointerCapture?.(pointer)) stick.releasePointerCapture(pointer);
+        dot.style.transform = "translate(0,0)";
+      });
+      const drag = event => {
+        if (stick.getAttribute("aria-disabled") === "true") return;
+        const rect = stick.getBoundingClientRect();
+        let x = (event.clientX - rect.left - rect.width / 2) / (rect.width / 2);
+        let y = (event.clientY - rect.top - rect.height / 2) / (rect.height / 2);
+        const length = Math.hypot(x, y);
+        if (length > 1) { x /= length; y /= length; }
+        dot.style.transform = `translate(${x * 38}px, ${y * 38}px)`;
+        apply(x, y, event.shiftKey);
+      };
+      stick.addEventListener("pointerdown", event => {
+        if (stick.getAttribute("aria-disabled") === "true") return;
+        event.preventDefault();
+        activePointer = event.pointerId;
+        stick.setPointerCapture(event.pointerId);
+        drag(event);
+      });
+      stick.addEventListener("pointermove", event => {
+        if (activePointer === event.pointerId && stick.hasPointerCapture(event.pointerId)) drag(event);
+      });
+      const end = event => {
+        if (activePointer !== event.pointerId) return;
+        activePointer = null;
+        if (stick.hasPointerCapture?.(event.pointerId)) stick.releasePointerCapture(event.pointerId);
+        dot.style.transform = "translate(0,0)";
+        release();
+      };
+      stick.addEventListener("pointerup", end);
+      stick.addEventListener("pointercancel", end);
+      stick.addEventListener("lostpointercapture", end);
+      stick.addEventListener("contextmenu", event => event.preventDefault());
+    }
+    setupJoystick("#base-stick", (x, y) => {
+      baseButton = null;
+      baseAxes = { x, y };
+      baseReadout.textContent = `前后 ${deadzone(-y).toFixed(2)} · 转向 ${deadzone(x).toFixed(2)}`;
+    }, () => { baseAxes = { x: 0, y: 0 }; baseReadout.textContent = "前后 0.00 · 转向 0.00"; sendBase(); });
+    const ptzVectors = { up:{x:0,y:-1,z:0}, down:{x:0,y:1,z:0}, left:{x:-1,y:0,z:0}, right:{x:1,y:0,z:0}, zoom_in:{x:0,y:0,z:1}, zoom_out:{x:0,y:0,z:-1} };
+    function paintPtz() {
+      ptzReadout.textContent = `水平 ${ptzAxes.x.toFixed(2)} · 垂直 ${ptzAxes.y.toFixed(2)} · 变焦 ${ptzAxes.z.toFixed(2)}`;
+      ptzButtons.forEach(button => button.setAttribute("aria-pressed", String(button === ptzHeld)));
+    }
+    function releasePtz() { ptzHeld = null; ptzAxes = {x:0,y:0,z:0}; paintPtz(); sendPtzAxes(); }
+    for (const button of ptzButtons) {
+      const press = () => { if (button.disabled) return; ptzHeld = button; ptzAxes = {...ptzVectors[button.dataset.ptz]}; paintPtz(); sendPtzAxes(); };
+      const release = () => { if (ptzHeld === button) releasePtz(); };
+      button.addEventListener("pointerdown", event => { if (event.button !== 0 || button.disabled) return; event.preventDefault(); button.setPointerCapture(event.pointerId); press(); });
+      for (const name of ["pointerup", "pointercancel", "lostpointercapture", "blur"]) button.addEventListener(name, release);
+      button.addEventListener("keydown", event => { if (["Space", "Enter"].includes(event.code)) { event.preventDefault(); if (!event.repeat) press(); } });
+      button.addEventListener("keyup", event => { if (["Space", "Enter"].includes(event.code)) { event.preventDefault(); release(); } });
+    }
+    document.querySelector("#ptz-zero").onclick = releasePtz;
+    const baseVectors = { forward: {x:0,y:-1}, back: {x:0,y:1}, left: {x:-1,y:0}, right: {x:1,y:0} };
+    function paintBase() {
+      baseReadout.textContent = `前后 ${deadzone(-baseAxes.y).toFixed(2)} · 转向 ${deadzone(baseAxes.x).toFixed(2)}`;
+      document.querySelector("#base-stick i").style.transform = `translate(${baseAxes.x * 38}px, ${baseAxes.y * 38}px)`;
+      document.querySelectorAll("[data-base]").forEach(button => button.setAttribute("aria-pressed", String(button === baseButton)));
+    }
+    for (const button of document.querySelectorAll("[data-base]")) {
+      const press = () => {
+        if (button.disabled) return;
+        baseButton = button; baseAxes = {...baseVectors[button.dataset.base]}; paintBase(); sendBase();
+      };
+      const release = () => {
+        if (baseButton !== button) return;
+        baseButton = null; baseAxes = {x:0,y:0}; paintBase(); sendBase();
+      };
+      button.addEventListener("pointerdown", event => { if (event.button !== 0 || button.disabled) return; event.preventDefault(); button.setPointerCapture(event.pointerId); press(); });
+      for (const name of ["pointerup", "pointercancel", "lostpointercapture", "blur"]) button.addEventListener(name, release);
+      button.addEventListener("keydown", event => { if (["Space", "Enter"].includes(event.code)) { event.preventDefault(); if (!event.repeat) press(); } });
+      button.addEventListener("keyup", event => { if (["Space", "Enter"].includes(event.code)) { event.preventDefault(); release(); } });
+    }
+    document.querySelector("#base-zero").onclick = () => stopAll("button");
+    window.addEventListener("blur", () => stopAll("blur"));
+    document.addEventListener("visibilitychange", () => { if (document.hidden) stopAll("hidden"); });
+    window.addEventListener("pagehide", () => { stopAll("pagehide"); if (operator) send({ type: "release_control" }); });
+
+    document.querySelector("#speed").addEventListener("input", event => {
+      document.querySelector("#speed-value").textContent = `${event.target.value} / 7`;
+      if (operator && (ptzAxes.x || ptzAxes.y || ptzAxes.z)) sendPtzAxes();
+    });
+    setInterval(() => {
+      if (!operator || document.hidden || !document.hasFocus()) return;
+      if (ws?.bufferedAmount > 4096) { stopAll("backpressure"); ws.close(); return; }
+      if (baseAxes.x || baseAxes.y) sendBase();
+      if (ptzAxes.x || ptzAxes.y || ptzAxes.z) sendPtzAxes();
+    }, 40);
+
+    setInterval(() => send({ type: "status" }), 3000);
+    connect();
+    renderControls();
+    updateMediaControls();
+    revealMediaControls();
+  </script>
+  <script src="/static/input-controls.js?v=20261111-ptz-local-video-1"></script>
+  <script src="/static/driving-settings.js?v=20261114-2"></script>
+</body>
+</html>
